@@ -1,0 +1,16 @@
+{
+  "CN": "Test CA",
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+      {
+          "C": "NO",
+          "L": "Bergen",
+          "ST": "Vestland",
+          "O": "trybefore",
+          "OU": "Test CA"
+      }
+  ]
+}
