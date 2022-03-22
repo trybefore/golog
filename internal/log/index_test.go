@@ -1,7 +1,6 @@
 package log
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -37,11 +36,9 @@ func TestIndexWriteRead(t *testing.T) {
 		err = idx.Write(want.Off, want.Pos)
 		require.NoError(t, err)
 
-		out, pos, err := idx.Read(int64(want.Off))
+		_, pos, err := idx.Read(int64(want.Off))
 		require.NoError(t, err)
 		require.Equal(t, want.Pos, pos)
-		fmt.Printf("pos: %v\n", pos)
-		fmt.Printf("out: %v\n", out)
 	}
 
 	_, _, err = idx.Read(int64(len(entries)))
