@@ -16,7 +16,7 @@ compile:
 
 .PHONY: test
 test: ${CONFIG_PATH}/policy.csv ${CONFIG_PATH}/model.conf
-	go test -race ./...
+	go test ./...
 
 .PHONY: bench
 bench:
