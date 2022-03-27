@@ -19,12 +19,14 @@ import (
 )
 
 func TestAgent(t *testing.T) {
+	var agents []*agent.Agent
+
 	serverTLSConfig, err := config.SetupTLSConfig(config.TLSConfig{
 		CertFile:      config.ServerCertFile,
 		KeyFile:       config.ServerKeyFile,
 		CAFile:        config.CAFile,
-		ServerAddress: "127.0.0.1",
 		Server:        true,
+		ServerAddress: "127.0.0.1",
 	})
 	require.NoError(t, err)
 
@@ -32,12 +34,10 @@ func TestAgent(t *testing.T) {
 		CertFile:      config.RootClientCertFile,
 		KeyFile:       config.RootClientKeyFile,
 		CAFile:        config.CAFile,
-		ServerAddress: "127.0.0.1",
 		Server:        false,
+		ServerAddress: "127.0.0.1",
 	})
 	require.NoError(t, err)
-
-	var agents []*agent.Agent
 
 	for i := 0; i < 3; i++ {
 		ports := dynaport.Get(2)
@@ -45,25 +45,27 @@ func TestAgent(t *testing.T) {
 		rpcPort := ports[1]
 
 		dataDir, err := ioutil.TempDir("", "agent-test-log")
-
 		require.NoError(t, err)
 
 		var startJoinAddrs []string
-
 		if i != 0 {
-			startJoinAddrs = append(startJoinAddrs, agents[0].Config.BindAddr)
+			startJoinAddrs = append(
+				startJoinAddrs,
+				agents[0].Config.BindAddr,
+			)
 		}
 
 		agent, err := agent.New(agent.Config{
-			ServerTLSConfig: serverTLSConfig,
-			PeerTLSConfig:   peerTLSConfig,
-			DataDir:         dataDir,
+			NodeName:        fmt.Sprintf("%d", i),
+			Bootstrap:       i == 0,
+			StartJoinAddrs:  startJoinAddrs,
 			BindAddr:        bindAddr,
 			RPCPort:         rpcPort,
-			NodeName:        fmt.Sprintf("%d", i),
-			StartJoinAddrs:  startJoinAddrs,
+			DataDir:         dataDir,
 			ACLModelFile:    config.ACLModelFile,
 			ACLPolicyFile:   config.ACLPolicyFile,
+			ServerTLSConfig: serverTLSConfig,
+			PeerTLSConfig:   peerTLSConfig,
 		})
 		require.NoError(t, err)
 
@@ -71,37 +73,59 @@ func TestAgent(t *testing.T) {
 	}
 	defer func() {
 		for _, agent := range agents {
-			err := agent.Shutdown()
-			require.NoError(t, err)
-			require.NoError(t, os.RemoveAll(agent.Config.DataDir))
+			_ = agent.Shutdown()
+			require.NoError(t,
+				os.RemoveAll(agent.Config.DataDir),
+			)
 		}
 	}()
-	time.Sleep(time.Second * 3)
+
+	// wait until agents have joined the cluster
+	time.Sleep(3 * time.Second)
 
 	leaderClient := client(t, agents[0], peerTLSConfig)
-	produceResponse, err := leaderClient.Produce(context.Background(), &api.ProduceRequest{
-		Record: &api.Record{
-			Value: []byte("Hello, world!"),
+	produceResponse, err := leaderClient.Produce(
+		context.Background(),
+		&api.ProduceRequest{
+			Record: &api.Record{
+				Value: []byte("foo"),
+			},
 		},
-	})
+	)
 	require.NoError(t, err)
-
-	consumeResponse, err := leaderClient.Consume(context.Background(), &api.ConsumeRequest{
-		Offset: produceResponse.Offset,
-	})
+	consumeResponse, err := leaderClient.Consume(
+		context.Background(),
+		&api.ConsumeRequest{
+			Offset: produceResponse.Offset,
+		},
+	)
 	require.NoError(t, err)
-	require.Equal(t, consumeResponse.Record.Value, []byte("Hello, world!"))
+	require.Equal(t, consumeResponse.Record.Value, []byte("foo"))
 
-	time.Sleep(time.Second * 3)
+	// wait until replication has finished
+	time.Sleep(3 * time.Second)
 
 	followerClient := client(t, agents[1], peerTLSConfig)
-	consumeResponse, err = followerClient.Consume(context.Background(), &api.ConsumeRequest{
-		Offset: produceResponse.Offset,
-	})
-
+	consumeResponse, err = followerClient.Consume(
+		context.Background(),
+		&api.ConsumeRequest{
+			Offset: produceResponse.Offset,
+		},
+	)
 	require.NoError(t, err)
+	require.Equal(t, consumeResponse.Record.Value, []byte("foo"))
 
-	require.Equal(t, consumeResponse.Record.Value, []byte("Hello, world!"))
+	consumeResponse, err = leaderClient.Consume(
+		context.Background(),
+		&api.ConsumeRequest{
+			Offset: produceResponse.Offset + 1,
+		},
+	)
+	require.Nil(t, consumeResponse)
+	require.Error(t, err)
+	got := grpc.Code(err)
+	want := grpc.Code(api.ErrOffsetOutOfRange{}.GRPCStatus().Err())
+	require.Equal(t, got, want)
 }
 
 func client(t *testing.T, agent *agent.Agent, tlsConfig *tls.Config) api.LogClient {
@@ -111,7 +135,6 @@ func client(t *testing.T, agent *agent.Agent, tlsConfig *tls.Config) api.LogClie
 	require.NoError(t, err)
 	conn, err := grpc.Dial(rpcAddr, opts...)
 	require.NoError(t, err)
-
 	client := api.NewLogClient(conn)
 	return client
 }

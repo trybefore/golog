@@ -1,6 +1,8 @@
 {
     "CN": "client",
-    "hosts": [""],
+    "hosts": [
+        ""
+    ],
     "key": {
         "algo": "rsa",
         "size": 2048
@@ -11,7 +13,7 @@
             "L": "Bergen",
             "ST": "Vestland",
             "O": "trybefore",
-            "OU": "Test CA"
+            "OU": "My CA"
         }
     ]
 }

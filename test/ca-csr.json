@@ -5,12 +5,12 @@
     "size": 2048
   },
   "names": [
-      {
-          "C": "NO",
-          "L": "Bergen",
-          "ST": "Vestland",
-          "O": "trybefore",
-          "OU": "Test CA"
-      }
+    {
+      "C": "NO",
+      "L": "Bergen",
+      "ST": "Vestland",
+      "O": "trybefore",
+      "OU": "CA Services"
+    }
   ]
 }

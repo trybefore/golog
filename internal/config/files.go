@@ -30,5 +30,10 @@ func configFile(filename string) string {
 	if err != nil {
 		panic(err)
 	}
-	return filepath.Join(homeDir, ".golog", filename)
+
+	filePath := filepath.Join(homeDir, ".golog", filename)
+
+	//fmt.Printf("filePath: %s\n", filePath)
+
+	return filePath
 }

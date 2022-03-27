@@ -34,6 +34,11 @@ type Authorizer interface {
 type Config struct {
 	CommitLog  CommitLog
 	Authorizer Authorizer
+	Directory  Directory
+}
+
+type Directory interface {
+	GetServers() ([]*api.Server, error)
 }
 
 type CommitLog interface {
@@ -168,6 +173,17 @@ func (s *grpcServer) ProduceStream(stream api.Log_ProduceStreamServer) error {
 			return err
 		}
 	}
+}
+
+func (s *grpcServer) GetServers(ctx context.Context, req *api.ServersRequest) (*api.ServersResponse, error) {
+	servers, err := s.Directory.GetServers()
+	if err != nil {
+		return nil, err
+	}
+
+	return &api.ServersResponse{
+		Servers: servers,
+	}, nil
 }
 
 func authenticate(ctx context.Context) (context.Context, error) {
