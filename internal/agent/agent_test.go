@@ -14,6 +14,7 @@ import (
 	"github.com/trybefore/golog/api"
 	"github.com/trybefore/golog/internal/agent"
 	"github.com/trybefore/golog/internal/config"
+	"github.com/trybefore/golog/internal/loadbalance"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -81,7 +82,7 @@ func TestAgent(t *testing.T) {
 	}()
 
 	// wait until agents have joined the cluster
-	time.Sleep(3 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	leaderClient := client(t, agents[0], peerTLSConfig)
 	produceResponse, err := leaderClient.Produce(
@@ -93,6 +94,9 @@ func TestAgent(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
+
+	time.Sleep(1 * time.Second)
+
 	consumeResponse, err := leaderClient.Consume(
 		context.Background(),
 		&api.ConsumeRequest{
@@ -103,7 +107,7 @@ func TestAgent(t *testing.T) {
 	require.Equal(t, consumeResponse.Record.Value, []byte("foo"))
 
 	// wait until replication has finished
-	time.Sleep(3 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	followerClient := client(t, agents[1], peerTLSConfig)
 	consumeResponse, err = followerClient.Consume(
@@ -133,7 +137,7 @@ func client(t *testing.T, agent *agent.Agent, tlsConfig *tls.Config) api.LogClie
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(tlsCreds)}
 	rpcAddr, err := agent.Config.RPCAddr()
 	require.NoError(t, err)
-	conn, err := grpc.Dial(rpcAddr, opts...)
+	conn, err := grpc.Dial(fmt.Sprintf("%s:///%s", loadbalance.Name, rpcAddr), opts...)
 	require.NoError(t, err)
 	client := api.NewLogClient(conn)
 	return client

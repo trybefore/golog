@@ -10,6 +10,7 @@ type Config struct {
 	}
 	Raft struct {
 		raft.Config `json:"-"`
+		BindAddr    string
 		StreamLayer *StreamLayer `json:"-"`
 		Bootstrap   bool
 	}

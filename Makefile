@@ -1,4 +1,5 @@
 
+TAG ?= 0.0.1
 #might change later
 CONFIG_PATH=${HOME}/.golog/
 
@@ -8,6 +9,9 @@ ${CONFIG_PATH}/policy.csv:
 ${CONFIG_PATH}/model.conf:
 	cp test/model.conf ${CONFIG_PATH}/model.conf
 
+.PHONY: build-docker
+build-docker: 
+	docker build -t github.com/trybefore/golog:$(TAG) .
 
 .PHONY: compile
 compile:
